@@ -5,7 +5,7 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 
 app.get("/", (req, res) => {
-  res.send("Multi-Token Bot Render üzerinde aktif!");
+  res.send("Multi-Token Bot Render üzerinde 400ms hızla aktif!");
 });
 
 app.listen(PORT, () => {
@@ -13,7 +13,6 @@ app.listen(PORT, () => {
 });
 
 // --- AYARLAR (Environment Variables) ---
-// Render panelinden gelen virgüllü metni diziye çeviriyoruz
 const rawTokens = process.env.TOKENS ? process.env.TOKENS.split(",") : [];
 const message = process.env.MESSAGE;
 const channels = [
@@ -28,17 +27,18 @@ let tokenIndex = 0;
 if (rawTokens.length === 0 || !message) {
     console.error("HATA: Render panelinde TOKENS veya MESSAGE bulunamadı!");
 } else {
-    console.log(`${rawTokens.length} adet token yüklendi. İşlem başlıyor...`);
-    // Belirlediğin 700ms hızında döngü
-    setInterval(handleCycle, 700);
+    console.log(`${rawTokens.length} adet token yüklendi. 400ms hızla başlıyor...`);
+    // Hız 400ms olarak güncellendi
+    setInterval(handleCycle, 400);
 }
 
 async function handleCycle() {
+  if (rawTokens.length === 0) return;
+
   const currentChannelId = channels[currentIndex];
-  const currentToken = rawTokens[tokenIndex].trim(); // Boşlukları temizler
+  const currentToken = rawTokens[tokenIndex].trim();
 
   try {
-    // Mesaj Gönderme (Hız yüksek olduğu için direkt mesaj fonksiyonunu çağırıyoruz)
     await axios.post(`https://discord.com/api/v9/channels/${currentChannelId}/messages`, {
       content: message
     }, {
@@ -48,12 +48,12 @@ async function handleCycle() {
       }
     });
     
-    console.log(`✅ Başarılı: Kanal ${currentChannelId} | Token Sonu: ...${currentToken.slice(-4)}`);
+    console.log(`✅ Gönderildi: Kanal ${currentChannelId} | Token: ...${currentToken.slice(-4)}`);
   } catch (err) {
-    console.error(`❌ Hata: ${err.response?.status || "Bağlantı Hatası"} (Token Index: ${tokenIndex})`);
+    // 429 hatası çok sık gelirse hızı biraz düşürmen gerekebilir
+    console.error(`❌ Hata: ${err.response?.status || "Bağlantı"} (Token Index: ${tokenIndex})`);
   }
 
-  // Her seferinde hem kanalı hem tokeni değiştir
   currentIndex = (currentIndex + 1) % channels.length;
   tokenIndex = (tokenIndex + 1) % rawTokens.length;
 }
