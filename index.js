@@ -5,15 +5,16 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 
 app.get("/", (req, res) => {
-  res.send("Bot yazma özelliğiyle aktif!");
+  res.send("Multi-Token Bot Render üzerinde aktif!");
 });
 
 app.listen(PORT, () => {
   console.log(`Sunucu ${PORT} portunda dinleniyor.`);
 });
 
-// --- AYARLAR ---
-const token = process.env.TOKEN;
+// --- AYARLAR (Environment Variables) ---
+// Render panelinden gelen virgüllü metni diziye çeviriyoruz
+const rawTokens = process.env.TOKENS ? process.env.TOKENS.split(",") : [];
 const message = process.env.MESSAGE;
 const channels = [
   "1467580268075421789",
@@ -22,49 +23,37 @@ const channels = [
 ];
 
 let currentIndex = 0;
+let tokenIndex = 0;
 
-if (!token || !message) {
-    console.error("HATA: TOKEN veya MESSAGE eksik!");
+if (rawTokens.length === 0 || !message) {
+    console.error("HATA: Render panelinde TOKENS veya MESSAGE bulunamadı!");
 } else {
-    // Döngüyü başlat
-    setInterval(handleCycle, 5000);
+    console.log(`${rawTokens.length} adet token yüklendi. İşlem başlıyor...`);
+    // Belirlediğin 700ms hızında döngü
+    setInterval(handleCycle, 700);
 }
 
 async function handleCycle() {
   const currentChannelId = channels[currentIndex];
+  const currentToken = rawTokens[tokenIndex].trim(); // Boşlukları temizler
 
   try {
-    // 1. Önce "Yazıyor..." animasyonunu gönder
-    await axios.post(`https://discord.com/api/v9/channels/${currentChannelId}/typing`, {}, {
-      headers: { "Authorization": token }
+    // Mesaj Gönderme (Hız yüksek olduğu için direkt mesaj fonksiyonunu çağırıyoruz)
+    await axios.post(`https://discord.com/api/v9/channels/${currentChannelId}/messages`, {
+      content: message
+    }, {
+      headers: {
+        "Authorization": currentToken,
+        "Content-Type": "application/json"
+      }
     });
-
-    // 2. Kısa bir gecikme (Gerçekçi görünmesi için 1.5 saniye bekle ve mesajı at)
-    setTimeout(() => {
-      sendActualMessage(currentChannelId);
-    }, 1500);
-
+    
+    console.log(`✅ Başarılı: Kanal ${currentChannelId} | Token Sonu: ...${currentToken.slice(-4)}`);
   } catch (err) {
-    console.error(`❌ Typing hatası (${currentChannelId}):`, err.response?.status);
-    // Hata olsa bile sırayı kaydır ki takılmasın
-    currentIndex = (currentIndex + 1) % channels.length;
+    console.error(`❌ Hata: ${err.response?.status || "Bağlantı Hatası"} (Token Index: ${tokenIndex})`);
   }
-}
 
-function sendActualMessage(channelId) {
-  axios.post(`https://discord.com/api/v9/channels/${channelId}/messages`, {
-    content: message
-  }, {
-    headers: {
-      "Authorization": token,
-      "Content-Type": "application/json"
-    }
-  }).then(() => {
-    console.log(`✅ Mesaj Gönderildi: ${channelId}`);
-    // Mesaj başarılıysa bir sonraki kanala geç
-    currentIndex = (currentIndex + 1) % channels.length;
-  }).catch((err) => {
-    console.error(`❌ Mesaj Hatası (${channelId}):`, err.response?.status);
-    currentIndex = (currentIndex + 1) % channels.length;
-  });
+  // Her seferinde hem kanalı hem tokeni değiştir
+  currentIndex = (currentIndex + 1) % channels.length;
+  tokenIndex = (tokenIndex + 1) % rawTokens.length;
 }
