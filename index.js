@@ -22,7 +22,6 @@ const channels = [
 ];
 
 let currentIndex = 0;
-let messageCase = "upper"; // 'upper' veya 'lower' arasında gidip gelecek
 
 if (!token || !message) {
     console.error("HATA: TOKEN veya MESSAGE eksik!");
@@ -53,13 +52,8 @@ async function handleCycle() {
 }
 
 function sendActualMessage(channelId) {
-  // Mesaj formatını belirle (büyük/küçük harf)
-  let formattedMessage;
-  if (messageCase === "upper") {
-    formattedMessage = message.toUpperCase();
-  } else {
-    formattedMessage = message.toLowerCase();
-  }
+  // Mesajı olduğu gibi gönder (büyük/küçük harf dönüşümü yok)
+  const formattedMessage = message;
   
   axios.post(`https://discord.com/api/v9/channels/${channelId}/messages`, {
     content: formattedMessage
@@ -69,16 +63,12 @@ function sendActualMessage(channelId) {
       "Content-Type": "application/json"
     }
   }).then(() => {
-    console.log(`✅ Mesaj Gönderildi: ${channelId} - Format: ${messageCase === "upper" ? "BÜYÜK HARF" : "küçük harf"} - İçerik: "${formattedMessage}"`);
-    
-    // Mesaj formatını değiştir (upper -> lower veya lower -> upper)
-    messageCase = messageCase === "upper" ? "lower" : "upper";
+    console.log(`✅ Mesaj Gönderildi: ${channelId} - İçerik: "${formattedMessage}"`);
     
     // Mesaj başarılıysa bir sonraki kanala geç
     currentIndex = (currentIndex + 1) % channels.length;
   }).catch((err) => {
     console.error(`❌ Mesaj Hatası (${channelId}):`, err.response?.status);
-    messageCase = messageCase === "upper" ? "lower" : "upper";
     currentIndex = (currentIndex + 1) % channels.length;
   });
 }
