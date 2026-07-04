@@ -5,56 +5,80 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 
 app.get("/", (req, res) => {
-  res.send("Multi-Token Bot Render üzerinde aktif!");
+  res.send("Bot yazma özelliğiyle aktif!");
 });
 
 app.listen(PORT, () => {
   console.log(`Sunucu ${PORT} portunda dinleniyor.`);
 });
 
-// --- AYARLAR (Environment Variables) ---
-const rawTokens = process.env.TOKENS ? process.env.TOKENS.split(",") : [];
+// --- AYARLAR ---
+const token = process.env.TOKEN;
 const message = process.env.MESSAGE;
 const channels = [
-  "1467580268075421789",
-  "1465058037088784447",
-  "1465052769743405128"
+  "1521215965591765092",
+  "1521215965591765092",
+  "1521215965591765092"
 ];
 
 let currentIndex = 0;
-let tokenIndex = 0;
+let messageCase = "upper"; // 'upper' veya 'lower' arasında gidip gelecek
 
-if (rawTokens.length === 0 || !message) {
-    console.error("HATA: Render panelinde TOKENS veya MESSAGE bulunamadı!");
+if (!token || !message) {
+    console.error("HATA: TOKEN veya MESSAGE eksik!");
 } else {
-    console.log(`${rawTokens.length} adet token yüklendi. İşlem 500ms hızında başlıyor...`);
-    // Hız 500ms olarak güncellendi
-    setInterval(handleCycle, 500);
+    // Döngüyü başlat
+    setInterval(handleCycle, 5000);
 }
 
 async function handleCycle() {
-  if (rawTokens.length === 0) return;
-
   const currentChannelId = channels[currentIndex];
-  const currentToken = rawTokens[tokenIndex].trim();
 
   try {
-    await axios.post(`https://discord.com/api/v9/channels/${currentChannelId}/messages`, {
-      content: message
-    }, {
-      headers: {
-        "Authorization": currentToken,
-        "Content-Type": "application/json"
-      }
+    // 1. Önce "Yazıyor..." animasyonunu gönder
+    await axios.post(`https://discord.com/api/v9/channels/${currentChannelId}/typing`, {}, {
+      headers: { "Authorization": token }
     });
-    
-    console.log(`✅ Başarılı: Kanal ${currentChannelId} | Token: ...${currentToken.slice(-4)}`);
-  } catch (err) {
-    // 429 hatası "Rate Limit" demektir, konsolda takip edebilirsin
-    console.error(`❌ Hata: ${err.response?.status || "Bağlantı"} (Token: ${tokenIndex})`);
-  }
 
-  // Döngüsel geçiş
-  currentIndex = (currentIndex + 1) % channels.length;
-  tokenIndex = (tokenIndex + 1) % rawTokens.length;
+    // 2. Kısa bir gecikme (Gerçekçi görünmesi için 1.5 saniye bekle ve mesajı at)
+    setTimeout(() => {
+      sendActualMessage(currentChannelId);
+    }, 1500);
+
+  } catch (err) {
+    console.error(`❌ Typing hatası (${currentChannelId}):`, err.response?.status);
+    // Hata olsa bile sırayı kaydır ki takılmasın
+    currentIndex = (currentIndex + 1) % channels.length;
+  }
+}
+
+function sendActualMessage(channelId) {
+  // Mesaj formatını belirle (büyük/küçük harf)
+  let formattedMessage;
+  if (messageCase === "upper") {
+    formattedMessage = message.toUpperCase();
+  } else {
+    formattedMessage = message.toLowerCase();
+  }
+  
+  axios.post(`https://discord.com/api/v9/channels/${channelId}/messages`, {
+    content: formattedMessage
+  }, {
+    headers: {
+      "Authorization": token,
+      "Content-Type": "application/json"
+    }
+  }).then(() => {
+    console.log(`✅ Mesaj Gönderildi: ${channelId} - Format: ${messageCase === "upper" ? "BÜYÜK HARF" : "küçük harf"} - İçerik: "${formattedMessage}"`);
+    
+    // Mesaj formatını değiştir (upper -> lower veya lower -> upper)
+    messageCase = messageCase === "upper" ? "lower" : "upper";
+    
+    // Mesaj başarılıysa bir sonraki kanala geç
+    currentIndex = (currentIndex + 1) % channels.length;
+  }).catch((err) => {
+    console.error(`❌ Mesaj Hatası (${channelId}):`, err.response?.status);
+    messageCase = messageCase === "upper" ? "lower" : "upper";
+    currentIndex = (currentIndex + 1) % channels.length;
+  });
 }
